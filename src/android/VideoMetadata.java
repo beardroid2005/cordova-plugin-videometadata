@@ -1,11 +1,17 @@
 package com.shahin8r.plugin;
 
 import org.apache.cordova.*;
+import org.apache.cordova.file.FileUtils;
+import org.apache.cordova.file.LocalFilesystemURL;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import android.media.*;
 import android.net.Uri;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import android.database.Cursor;
 import android.provider.MediaStore;
@@ -29,6 +35,29 @@ public class VideoMetadata extends CordovaPlugin {
             int height = Integer.valueOf(metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
             int duration = Integer.valueOf(metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
             int bitrate = Integer.valueOf(metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE));
+            String mimeType = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
+
+            Class webViewClass = webView.getClass();
+            PluginManager pm = null;
+            try {
+                Method gpm = webViewClass.getMethod("getPluginManager");
+                pm = (PluginManager) gpm.invoke(webView);
+            } catch (NoSuchMethodException e) {
+            } catch (IllegalAccessException e) {
+            } catch (InvocationTargetException e) {
+            }
+            if (pm == null) {
+                try {
+                    Field pmf = webViewClass.getField("pluginManager");
+                    pm = (PluginManager)pmf.get(webView);
+                } catch (NoSuchFieldException e) {
+                } catch (IllegalAccessException e) {
+                }
+            }
+            FileUtils filePlugin = (FileUtils) pm.getPlugin("File");
+            LocalFilesystemURL url = filePlugin.filesystemURLforLocalPath(src.toString());
+
+
 
             JSONObject metadata = new JSONObject();
 
@@ -37,6 +66,8 @@ public class VideoMetadata extends CordovaPlugin {
             metadata.put("rotation", rotation);
             metadata.put("duration", duration);
             metadata.put("bitrate", bitrate);
+            metadata.put("mime", mimeType);
+            metadata.put("localUrl", url.toString());
 
             callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, metadata));
 
