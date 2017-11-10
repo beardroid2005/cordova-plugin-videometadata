@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import android.media.*;
 import android.net.Uri;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -24,11 +25,21 @@ public class VideoMetadata extends CordovaPlugin {
 
         if (action.equals("file")) {
 
-            Uri src = Uri.parse(args.getString(0));
+            String source = args.getString(0);
+            final CordovaResourceApi resourceApi = webView.getResourceApi();
+
+            Uri tmpSrc = Uri.parse(source);
+            final Uri src = resourceApi.remapUri(
+                    tmpSrc.getScheme() != null ? tmpSrc : Uri.fromFile(new File(source)));
+
+
+//            Uri src = Uri.parse(args.getString(0));
 
             MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
 
-            metaRetriever.setDataSource(getRealPathFromURI(src));
+
+            String realPathFromURI = getRealPathFromURI(src);
+            metaRetriever.setDataSource(realPathFromURI);
             
             int width = Integer.valueOf(metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
             int rotation = Integer.valueOf(metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION));
@@ -55,9 +66,8 @@ public class VideoMetadata extends CordovaPlugin {
                 }
             }
             FileUtils filePlugin = (FileUtils) pm.getPlugin("File");
-            LocalFilesystemURL url = filePlugin.filesystemURLforLocalPath(src.toString());
-
-
+            LocalFilesystemURL url = filePlugin.filesystemURLforLocalPath(realPathFromURI);
+            File filename = new File(realPathFromURI);
 
             JSONObject metadata = new JSONObject();
 
@@ -67,7 +77,9 @@ public class VideoMetadata extends CordovaPlugin {
             metadata.put("duration", duration);
             metadata.put("bitrate", bitrate);
             metadata.put("mime", mimeType);
+            metadata.put("fullPath", realPathFromURI);
             metadata.put("localUrl", url.toString());
+            metadata.put("filename", filename.getName());
 
             callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, metadata));
 
